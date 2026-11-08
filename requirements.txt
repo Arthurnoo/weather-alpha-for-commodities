@@ -1,0 +1,11 @@
+pandas>=2.2
+numpy>=1.26
+xarray>=2024.1
+netCDF4>=1.6
+requests>=2.31
+yfinance>=0.2.40
+pyarrow>=15
+scikit-learn>=1.4
+shap>=0.45
+matplotlib>=3.8
+jupyter
