@@ -72,7 +72,7 @@ def download_one(variable: str, year: int) -> str:
     return f"ok   {variable}_{year} -> {len(todo)} boxes"
 
 
-def download_all(workers: int = 3) -> None:
+def download_all(workers: int = 8) -> None:
     years = range(pd.Timestamp(WEATHER_START).year, pd.Timestamp(END_DATE).year + 1)
     jobs = list(product(CPC_VARIABLES, years))
     with ThreadPoolExecutor(max_workers=workers) as pool:

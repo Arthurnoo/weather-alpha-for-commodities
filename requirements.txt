@@ -9,3 +9,5 @@ scikit-learn>=1.4
 shap>=0.45
 matplotlib>=3.8
 jupyter
+pypdf
+beautifulsoup4
