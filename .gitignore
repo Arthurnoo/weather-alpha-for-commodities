@@ -1,5 +1,8 @@
 .venv/
-data/raw/
+# Large raw downloads (2.3 GB): rebuilt with the src/download_*.py scripts
+data/raw/cpc/
+data/raw/spam/
+data/raw/wwcb/
 __pycache__/
 .ipynb_checkpoints/
 .DS_Store

@@ -4,7 +4,12 @@ Turn daily futures closes into a clean weekly panel: returns, features, targets.
 Main issue: Yahoo's continuous series ("ZC=F") jumps to the next contract when
 the front one expires. The price gap on that day is a spread between two
 contracts, not a market move. We locate the roll day from each exchange's
-expiry rule and drop the return of that single day.
+expiry rule and drop the return of that day.
+
+Second issue: on its last trading day the expiring contract is thin (most
+traders have already rolled) and can print absurd prices, e.g. soybeans on
+2008-09-12: 1216 -> 1490 -> 1179. The return of the day before the roll
+(the expiry day) is dropped too.
 
 Output: data/processed/prices_weekly.parquet
         index (date, commodity), columns = M1 features + targets
@@ -65,14 +70,21 @@ def roll_days(trading_days: pd.DatetimeIndex, rule: str, months: list) -> pd.Dat
 # ---------------------------------------------------------------------------
 # Daily and weekly returns
 # ---------------------------------------------------------------------------
+def expiry_days(trading_days: pd.DatetimeIndex, rolls: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Last trading day of each expiring contract = the trading day before each roll day."""
+    position = trading_days.get_indexer(rolls)
+    return trading_days[position[position > 0] - 1]
+
+
 def daily_returns(prices: pd.DataFrame) -> pd.DataFrame:
-    """Daily log returns with the roll-day return set to NaN."""
+    """Daily log returns with the roll-day and expiry-day returns set to NaN."""
     returns = {}
     for name, spec in COMMODITIES.items():
         close = prices[name].dropna()
         ret = np.log(close).diff()
         rolls = roll_days(close.index, spec["roll"], spec["months"])
-        ret[ret.index.isin(rolls)] = np.nan  # drop the contract-switch jump
+        ret[ret.index.isin(rolls)] = np.nan                            # contract-switch jump
+        ret[ret.index.isin(expiry_days(close.index, rolls))] = np.nan  # thin last day
         returns[name] = ret
     return pd.DataFrame(returns)
 

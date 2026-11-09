@@ -21,14 +21,17 @@ python3 -m venv .venv
 .venv/bin/python -m src.download_prices   # Yahoo futures, a few seconds
 .venv/bin/python -m src.download_spam     # MapSPAM crop production, ~150 MB
 .venv/bin/python -m src.download_cpc      # NOAA CPC daily weather, slow (rerun until complete)
+.venv/bin/python -m src.download_enso     # El Nino index (ONI), used as a check of the rain data
 .venv/bin/python -m src.prices            # weekly returns, features, targets
-.venv/bin/python -m src.weights           # production weights on the weather grid
+.venv/bin/python -m src.weights           # production weights on the weather grid, regions, land mask
 .venv/bin/python -m src.weather           # weekly weather per commodity and zone
 .venv/bin/python -m src.components        # stress anomalies
 .venv/bin/python -m src.indices           # WSI-CPRI and WSI-PCA
 ```
 
-Then open `notebooks/main.ipynb`: it only reads `data/processed/` and runs the models.
+Then open `notebooks/main.ipynb`. It currently covers the data only: descriptive statistics and
+stylized facts for prices, production weights and weather. It reads `data/processed/` and
+`data/raw/prices_daily.parquet`, which are versioned, so it runs without any download.
 
 ## Layout
 
@@ -36,12 +39,14 @@ Then open `notebooks/main.ipynb`: it only reads `data/processed/` and runs the m
 |---|---|
 | `config.py` | universe, zones, seasons, thresholds, dates, paths |
 | `src/download_*.py` | raw downloads into `data/raw/` |
-| `src/prices.py` | roll-adjusted weekly returns, market features, targets |
+| `src/prices.py` | weekly returns without roll and expiry days, market features, targets |
 | `src/weights.py` | production (or population) weights per weather cell |
 | `src/weather.py` | daily stress variables, weighted average, weekly aggregation |
 | `src/components.py` | past-only anomalies, season mask, zones combined |
 | `src/indices.py` | CPRI-style and PCA indices |
 | `src/models.py` | walk-forward M1 to M4, ridge and boosting |
-| `notebooks/main.ipynb` | all results and figures |
+| `src/describe.py` | descriptive statistics and data checks used by the notebook |
+| `notebooks/main.ipynb` | data description and stylized facts |
 
-`data/` is not versioned: rerun the scripts to rebuild it.
+`data/processed/` and the small raw files (prices, ONI) are versioned. The large raw downloads
+(`data/raw/cpc`, `spam`, `wwcb`, 2.3 GB) are not: rerun the download scripts to rebuild them.
