@@ -75,9 +75,9 @@ def expiry_days(trading_days: pd.DatetimeIndex, rolls: pd.DatetimeIndex) -> pd.D
     position = trading_days.get_indexer(rolls)
     return trading_days[position[position > 0] - 1]
 
-
+"""
 def daily_returns(prices: pd.DataFrame) -> pd.DataFrame:
-    """Daily log returns with the roll-day and expiry-day returns set to NaN."""
+    #Daily log returns with the roll-day and expiry-day returns set to NaN.
     returns = {}
     for name, spec in COMMODITIES.items():
         close = prices[name].dropna()
@@ -86,6 +86,56 @@ def daily_returns(prices: pd.DataFrame) -> pd.DataFrame:
         ret[ret.index.isin(rolls)] = np.nan                            # contract-switch jump
         ret[ret.index.isin(expiry_days(close.index, rolls))] = np.nan  # thin last day
         returns[name] = ret
+    return pd.DataFrame(returns)
+"""
+
+
+"""
+Two precautions are applied when constructing daily and weekly returns:
+
+Missing price observations: Daily log returns are calculated without dropping missing prices beforehand. This prevents the calculation from bridging gaps in the original price series and incorrectly attributing multi-day price movements to a single trading day.
+
+Weekly aggregation: Weekly returns and realized volatility are calculated only when at least three valid daily returns are available within the week (min_count=3). This reduces the influence of incomplete trading weeks and improves the reliability of weekly observations.
+
+Additionally, estimated futures roll dates and the preceding trading days are excluded from daily return calculations to limit artificial price movements associated with contract switching.
+"""
+def daily_returns(prices: pd.DataFrame) -> pd.DataFrame:
+    """
+    Daily log returns.
+
+    Missing prices are preserved: returns are only calculated when
+    two consecutive observations in the original trading-day index
+    both have valid prices.
+    
+    Estimated roll-day and expiry-day returns are excluded.
+    """
+    returns = {}
+
+    for name, spec in COMMODITIES.items():
+
+        # Preserve the original index, including missing prices
+        close = prices[name]
+
+        # Calculate returns without bridging missing observations
+        ret = np.log(close).diff()
+
+        # Use actual available price dates for the roll calendar
+        trading_days = close.dropna().index
+
+        rolls = roll_days(
+            trading_days,
+            spec["roll"],
+            spec["months"]
+        )
+
+        expiries = expiry_days(trading_days, rolls)
+
+        # Exclude contract-switch and expiry-day returns
+        ret.loc[ret.index.isin(rolls)] = np.nan
+        ret.loc[ret.index.isin(expiries)] = np.nan
+
+        returns[name] = ret
+
     return pd.DataFrame(returns)
 
 
@@ -108,9 +158,15 @@ def weekly_panel(daily: pd.DataFrame) -> pd.DataFrame:
     in a calm market counts as much as one in a turbulent market.
     """
     # Weekly return = sum of daily log returns of the week (roll day excluded)
-    weekly = daily.resample(WEEK_RULE).sum(min_count=1)
+    # weekly = daily.resample(WEEK_RULE).sum(min_count=1)
+    # Require at least 3 valid daily returns per week
+    weekly = daily.resample(WEEK_RULE).sum(min_count=3)
     # Weekly realized variance = sum of squared daily returns within the week
-    weekly_rv = np.sqrt((daily ** 2).resample(WEEK_RULE).sum(min_count=1) * 52)
+    # weekly_rv = np.sqrt((daily ** 2).resample(WEEK_RULE).sum(min_count=1) * 52)
+    # Weekly realized volatility, subject to the same data requirement
+    weekly_rv = np.sqrt(
+        (daily ** 2).resample(WEEK_RULE).sum(min_count=3) * 52
+    )
     # Daily volatility measured over ~1 and ~3 months, read on Fridays
     vol_4w = daily.rolling(20, min_periods=15).std().resample(WEEK_RULE).last() * np.sqrt(252)
     vol_12w = daily.rolling(60, min_periods=45).std().resample(WEEK_RULE).last() * np.sqrt(252)

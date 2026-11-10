@@ -73,7 +73,7 @@ ALL_MONTHS = list(range(1, 13))
 
 COMMODITIES = {
     "corn": {
-        "ticker": "ZC=F", "crop": "maiz", "heat_t": 29.0, "frost_t": 0.0,
+        "ticker": "ZC=F", "crop": "maiz", "heat_t": 30.0, "frost_t": 0.0,
         "roll": "cbot", "months": [3, 5, 7, 9, 12],
         "zones": {
             "US": {"iso3": ["USA"], "box": "north_america", "season": [5, 6, 7, 8, 9]},
@@ -89,7 +89,7 @@ COMMODITIES = {
         },
     },
     "wheat_srw": {
-        "ticker": "ZW=F", "crop": "whea", "heat_t": 32.0, "frost_t": -10.0,
+        "ticker": "ZW=F", "crop": "whea", "heat_t": 25.0, "frost_t": -10.0,
         "roll": "cbot", "months": [3, 5, 7, 9, 12],
         "zones": {
             "US": {"iso3": ["USA"], "adm1": US_SRW_STATES, "box": "north_america",
@@ -101,7 +101,7 @@ COMMODITIES = {
         },
     },
     "wheat_hrw": {
-        "ticker": "KE=F", "crop": "whea", "heat_t": 32.0, "frost_t": -10.0,
+        "ticker": "KE=F", "crop": "whea", "heat_t": 25.0, "frost_t": -10.0,
         "roll": "cbot", "months": [3, 5, 7, 9, 12],
         "zones": {
             "US": {"iso3": ["USA"], "adm1": US_HRW_STATES, "box": "north_america",
@@ -109,7 +109,7 @@ COMMODITIES = {
         },
     },
     "coffee": {
-        "ticker": "KC=F", "crop": "acof", "heat_t": 30.0, "frost_t": 2.0,
+        "ticker": "KC=F", "crop": "acof", "heat_t": 25.0, "frost_t": 2.0,
         "roll": "ice_coffee", "months": [3, 5, 7, 9, 12],
         "zones": {
             "BRA": {"iso3": ["BRA"], "box": "south_america",
@@ -118,7 +118,7 @@ COMMODITIES = {
         },
     },
     "cocoa": {
-        "ticker": "CC=F", "crop": "coco", "heat_t": 33.0, "frost_t": 0.0,
+        "ticker": "CC=F", "crop": "coco", "heat_t": 30.0, "frost_t": 0.0,
         "roll": "ice_cocoa", "months": [3, 5, 7, 9, 12],
         "zones": {
             "WAF": {"iso3": ["CIV", "GHA", "CMR", "NGA"], "box": "west_africa",
