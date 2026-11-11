@@ -24,7 +24,7 @@ END_DATE = "2025-12-31"
 # climatology of years before Y only, so 2000 needs a 1990s history
 WEATHER_START = "1990-01-01"
 FIRST_TEST_YEAR = 2010  # models are trained on 2000-2009, then refit every January
-WEEK_RULE = "W-FRI"     # weekly bars end on Friday (futures close of the week)
+WEEK_RULE = "W-WED"     # weekly bars end on Wednesday: mid-week close, liquid session, weekend news (priced on Monday) fully absorbed
 
 # ---------------------------------------------------------------------------
 # Weather download boxes (lat_min, lat_max, lon_min, lon_max), lon in [-180, 180]

@@ -6,7 +6,7 @@ Steps, for each (commodity, zone):
   2. compute the daily stress variables cell by cell (before averaging, so that
      a heat wave in one region is not smoothed away by cool cells elsewhere)
   3. average the cells with the production weights
-  4. aggregate days into weeks ending on Friday
+  4. aggregate days into weeks ending on Wednesday (WEEK_RULE in config.py)
 
 Output: data/processed/weather_weekly.parquet
         columns: date, commodity, zone, variable, value  (long format)

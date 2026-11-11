@@ -141,7 +141,7 @@ def daily_returns(prices: pd.DataFrame) -> pd.DataFrame:
 
 def weekly_panel(daily: pd.DataFrame) -> pd.DataFrame:
     """
-    Weekly features (known at the Friday close of week t) and targets (week t+1).
+    Weekly features (known at the Wednesday close of week t) and targets (week t+1).
 
     Features (model M1):
       ret_1w, ret_4w, ret_12w, ret_52w   past cumulative log returns (momentum / reversal)
@@ -167,7 +167,7 @@ def weekly_panel(daily: pd.DataFrame) -> pd.DataFrame:
     weekly_rv = np.sqrt(
         (daily ** 2).resample(WEEK_RULE).sum(min_count=3) * 52
     )
-    # Daily volatility measured over ~1 and ~3 months, read on Fridays
+    # Daily volatility measured over ~1 and ~3 months, read on the last day of each week
     vol_4w = daily.rolling(20, min_periods=15).std().resample(WEEK_RULE).last() * np.sqrt(252)
     vol_12w = daily.rolling(60, min_periods=45).std().resample(WEEK_RULE).last() * np.sqrt(252)
 

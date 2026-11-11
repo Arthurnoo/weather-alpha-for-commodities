@@ -42,15 +42,23 @@ def moments(returns: pd.DataFrame, periods_per_year: int) -> pd.DataFrame:
     """
     First four moments of each return series, plus the Jarque-Bera normality test.
 
+    mean_ann   average log return per period x periods per year (drift of the log price)
+    vol_ann    standard deviation x sqrt(periods per year): annualizing assumes
+               returns are independent from one period to the next
     skew       3rd standardized moment: < 0 = long left tail (crashes),
                > 0 = long right tail (spikes). Normal: 0.
     ex_kurt    4th standardized moment minus 3: > 0 = fat tails. Normal: 0.
-    jb_pvalue  Jarque-Bera test of skew = 0 and ex_kurt = 0 jointly.
-               p < 0.05: normality rejected.
+    jb_stat    Jarque-Bera statistic n/6 x (skew^2 + ex_kurt^2 / 4). Under normality it
+               follows a chi-squared with 2 degrees of freedom: above 5.99, normality
+               is rejected at 5 %. Its size grows with n, so with thousands of days
+               even a moderate kurtosis gives a huge statistic.
+    jb_pvalue  probability of a statistic this large if returns were normal.
+               It underflows to 0 when the statistic exceeds about 1500.
     """
     rows = {}
     for name, x in returns.items():
         x = x.dropna()
+        jb = stats.jarque_bera(x)
         rows[name] = {
             "n_obs": len(x),
             "mean_ann": x.mean() * periods_per_year,
@@ -59,7 +67,8 @@ def moments(returns: pd.DataFrame, periods_per_year: int) -> pd.DataFrame:
             "ex_kurt": stats.kurtosis(x),  # Fisher definition: normal = 0
             "min": x.min(),
             "max": x.max(),
-            "jb_pvalue": stats.jarque_bera(x).pvalue,
+            "jb_stat": jb.statistic,
+            "jb_pvalue": jb.pvalue,
         }
     return pd.DataFrame(rows).T
 
@@ -78,6 +87,64 @@ def tail_frequency(returns: pd.DataFrame, sigmas=(2, 3, 4)) -> pd.DataFrame:
     out = pd.DataFrame({f"|z|>{k}": (z.abs() > k).sum() / z.notna().sum() for k in sigmas}).T
     out["normal"] = [2 * stats.norm.sf(k) for k in sigmas]
     return out.T
+
+
+def tail_curve(returns: pd.Series, grid: np.ndarray) -> pd.Series:
+    """Empirical P(|z| > k) for each k of the grid, z = standardized return."""
+    x = returns.dropna()
+    z = ((x - x.mean()) / x.std()).abs().values
+    return pd.Series([(z > k).mean() for k in grid], index=grid)
+
+
+# ---------------------------------------------------------------------------
+# Prices: check of the roll calendar against the data
+# ---------------------------------------------------------------------------
+def jump_size(close: pd.Series) -> pd.Series:
+    """|daily log return| in units of the previous 60 days' volatility."""
+    r = np.log(close).diff()
+    return (r / r.rolling(60, min_periods=30).std().shift(1)).abs()
+
+
+def roll_alignment(closes: pd.DataFrame, half_window: int = 8, min_jump: float = 4.0) -> pd.DataFrame:
+    """
+    Do the roll days given by the exchange rules match the jumps of Yahoo's series?
+
+    Around each rule-based roll day we look at the 17 trading days centered on it.
+    If the largest move of that window is a clear jump (> min_jump sigmas), we record
+    where it falls: on the roll day (offset 0, the rule is right), on the day before
+    (offset -1, expiry-day print), or elsewhere (the rule is off, or a real news day).
+    Most rolls show no clear jump at all: adjacent contracts often trade at similar
+    prices, so the switch is invisible.
+    """
+    from src.prices import roll_days  # local import: describe.py stays usable without it
+    from config import COMMODITIES
+    rows = {}
+    for name, spec in COMMODITIES.items():
+        close = closes[name].dropna()
+        z = jump_size(close)
+        rolls = roll_days(close.index, spec["roll"], spec["months"])
+        offsets = []
+        for p in close.index.get_indexer(rolls):
+            window = z.iloc[max(p - half_window, 0): p + half_window + 1]
+            if p < half_window or not window.max() >= min_jump:
+                continue
+            offsets.append(int(np.nanargmax(window.values)) - half_window)
+        offsets = pd.Series(offsets, dtype=int)
+        rows[name] = {"rolls": len(rolls), "clear jump nearby": len(offsets),
+                      "on roll day": (offsets == 0).sum(), "on expiry day": (offsets == -1).sum(),
+                      "elsewhere": (offsets.abs() > 0).sum() - (offsets == -1).sum()}
+    return pd.DataFrame(rows).T
+
+
+def big_days_off_roll(closes: pd.DataFrame, returns: pd.DataFrame, min_jump: float = 5.0) -> pd.DataFrame:
+    """Days with a move above min_jump sigmas that we KEEP (not a roll or expiry day)."""
+    rows = []
+    for name in returns.columns:
+        z = jump_size(closes[name].dropna())
+        kept = returns[name].dropna()
+        for day in z[z > min_jump].index.intersection(kept.index):
+            rows.append({"commodity": name, "date": day.date(), "sigmas": z[day], "log return": kept[day]})
+    return pd.DataFrame(rows).sort_values(["commodity", "date"]).reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +233,7 @@ def seasonal_value(series: pd.Series, months: list, agg: str = "sum",
     year = s.index.year + ((s.index.month >= 10) if cross_year else 0)
     grouped = s.groupby(year)
     n_weeks = grouped.size()
-    # A season has 8 or 9 Fridays depending on the year: only clearly truncated
+    # A season has 8 or 9 weekly bars depending on the year: only clearly truncated
     # seasons (start and end of the sample) are dropped
     full = n_weeks >= 0.75 * n_weeks.median()
     return grouped.agg(agg)[full]
