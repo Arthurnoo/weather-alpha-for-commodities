@@ -26,8 +26,10 @@ CROP_COMPONENTS = {
     "heat": lambda w: w["edd"],
     "warm_nights": lambda w: w["tmin"],
     "heavy_rain": lambda w: w["heavy_rain_days"],
-    "frost": (lambda w: (w["frost_dd"] > 0).astype(float).where(w["frost_dd"].notna())),
+    #"frost": (lambda w: (w["frost_dd"] > 0).astype(float).where(w["frost_dd"].notna())),
+    "frost": lambda w: w["frost_dd"],
 }
+
 
 GAS_COMPONENTS = {
     "cold": lambda w: w["hdd"],
@@ -135,6 +137,7 @@ def expanding_anomaly(
 # Regional components
 # ---------------------------------------------------------------------------
 
+
 def zone_components(
     weather: pd.DataFrame,
     is_gas: bool,
@@ -152,12 +155,11 @@ def zone_components(
     })
 
     if not is_gas:
-        # Four consecutive in-season weeks are required.
         raw["dryness"] = -(
-            weather["water_balance"]
-            .where(in_season)
-            .rolling(window=4, min_periods=4)
-            .sum()
+        weather["water_balance"]
+        .rolling(window=4, min_periods=4)
+        .sum()
+        .where(in_season)
         )
 
     # Standardise continuous weather stress indicators.
@@ -166,7 +168,15 @@ def zone_components(
         for column in raw.columns
     })
 
-    if not is_gas:
+    if is_gas:
+        # Hard freeze is a sparse event/count variable.
+        # Keep its original weekly exposure instead of z-scoring it.
+        components["hard_freeze"] = raw["hard_freeze"].where(
+            in_season,
+            0.0
+        )
+
+    else:
         # Frost is a binary event indicator, NOT a standardised anomaly.
         components["frost"] = raw["frost"]
 
@@ -174,6 +184,7 @@ def zone_components(
         components.loc[~in_season, "frost"] = 0.0
 
     return components
+
 
 
 # ---------------------------------------------------------------------------
